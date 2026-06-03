@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Mapa Mental Jerárquico · Misión Ribas</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: #f4f9ff;
+            padding: 16px;
+            color: #1e2a3e;
+        }
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: #2c3e66;
+            padding: 16px 24px;
+            color: white;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .header h1 {
+            font-size: 1.4rem;
+        }
+        .header button {
+            background: #ffcd3c;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            color: #1e2a3e;
+            margin-left: 8px;
+        }
+        .header button:hover {
+            background: #f0b81e;
+        }
+        .main-layout {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .editor-panel {
+            flex: 1.2;
+            min-width: 280px;
+            background: #fef9e8;
+            padding: 20px;
+            border-right: 1px solid #e2e8f0;
+        }
+        .editor-panel textarea {
+            width: 100%;
+            height: 400px;
+            padding: 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border-radius: 20px;
+            border: 1px solid #ccc;
+            background: #fffef7;
+            resize: vertical;
+        }
+        .map-panel {
+            flex: 2;
+            min-width: 300px;
+            background: #ffffff;
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .node-card {
+            background: #ffffff;
+            border-left: 5px solid;
+            border-radius: 20px;
+            padding: 12px 18px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .node-card:hover {
+            background: #f1f5f9;
+            transform: translateX(4px);
+        }
+        .level-0 { border-left-color: #e67e22; background: #fff7ed; }
+        .level-1 { border-left-color: #3b82f6; }
+        .level-2 { border-left-color: #10b981; }
+        .level-3 { border-left-color: #8b5cf6; }
+        .level-4 { border-left-color: #ec489a; }
+        .level-5 { border-left-color: #06b6d4; }
+        .level-6 { border-left-color: #f97316; }
+        .level-7 { border-left-color: #6b7280; }
+
+        .node-title {
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .toggle-icon {
+            font-size: 1.2rem;
+            opacity: 0.7;
+        }
+        .children-container {
+            margin-left: 24px;
+            margin-top: 10px;
+            border-left: 2px dashed #cbd5e1;
+            padding-left: 16px;
+        }
+        .children-container.collapsed {
+            display: none;
+        }
+        .empty-message {
+            text-align: center;
+            padding: 40px;
+            color: #6c7a8e;
+        }
+        footer {
+            background: #eef2fa;
+            text-align: center;
+            padding: 12px;
+            font-size: 0.75rem;
+        }
+        @media (max-width: 700px) {
+            .editor-panel {
+                border-right: none;
+                border-bottom: 1px solid #ddd;
+            }
+            .map-panel {
+                max-height: 60vh;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="header">
+        <h1>🧠 Mapa Mental Jerárquico · Misión Ribas</h1>
+        <div>
+            <button id="generarBtn">✨ Generar mapa</button>
+            <button id="exportHtmlBtn">📄 Exportar HTML</button>
+            <button id="exportTxtBtn">📁 Exportar TXT</button>
+        </div>
+    </div>
+    <div class="main-layout">
+        <div class="editor-panel">
+            <h3>📝 Contenido estructurado (Markdown)</h3>
+            <textarea id="sourceText" rows="20"></textarea>
+            <p style="font-size:12px; margin-top:8px;">🔹 Usa # para nivel 0, ## nivel 1, ### nivel 2, #### nivel 3 ...<br>
+            Los guiones - crean ítems al mismo nivel del título anterior.</p>
+        </div>
+        <div class="map-panel" id="mapPanel">
+            <div class="empty-message">⬅️ Escribe o pega tu contenido y haz clic en "Generar mapa"</div>
+        </div>
+    </div>
+    <footer>Herramienta offline · Clic en cada tarjeta expande/colapsa</footer>
+</div>
+
+<script>
+    (function(){
+        // Obtener elementos
+        const textarea = document.getElementById('sourceText');
+        const generarBtn = document.getElementById('generarBtn');
+        const exportHtmlBtn = document.getElementById('exportHtmlBtn');
+        const exportTxtBtn = document.getElementById('exportTxtBtn');
+        const mapPanel = document.getElementById('mapPanel');
+
+        // Texto de ejemplo (Evaluación educativa)
+        const ejemplo = `# MISION RIBAS - LA EVALUACIÓN EDUCATIVA
+
+## Concepto de evaluación en la Misión Ribas
+- Proceso integral, continuo y humanista.
+- Propósito: valorar el desarrollo completo del participante ("vencedor") en las dimensiones: ser, hacer, convivir y conocer.
+- Reconoce los diferentes ritmos y desarrollos de cada persona.
+
+## Características de la evaluación
+- Continua
+- Integral
+- Cooperativa
+
+## Fases de la evaluación
+
+### 1. Evaluación Exploratoria
+- **Cuándo:** Antes de comenzar a trabajar un contenido.
+- **Objetivo:** Detectar conocimientos previos, habilidades, fortalezas y debilidades.
+
+### 2. Evaluación Formativa
+- **Propósito:** Guiar y mejorar el proceso para el vencedor y el facilitador.
+- **Función:** Monitoreo constante para detectar dificultades a tiempo.
+
+### 3. Evaluación Sumativa
+- **Propósito:** Certificar los resultados finales del aprendizaje.
+- **Cuándo:** Al final de un período (tema, trimestre, año escolar).
+
+## Instrumentos de evaluación
+- Registro Descriptivo
+- Observación
+- Entrevistas
+- Exposiciones
+- Portafolio
+- Mapas mentales
+
+## Dimensiones evaluadas
+
+### Ser (cualitativa)
+- Evalúa aspectos internos, valores, actitudes.
+- Ejemplos: honestidad, responsabilidad, respeto.
+
+### Hacer (cualitativa)
+- Aplicación práctica del conocimiento.
+- Ejemplos: proyectos, trabajos de campo, maquetas.
+
+### Convivir (cualitativa)
+- Habilidades sociales, trabajo en equipo.
+- Ejemplos: debates, colaboración.
+
+### Conocer (cuantitativa)
+- Escala del 01 al 20.
+- Nota mínima: Ribas Integral 13, Ribas Técnica 15.
+
+## Cita de Paulo Freire
+- "Enseñar no es transmitir conocimientos, sino crear las posibilidades de su construcción."`;
+
+        textarea.value = ejemplo;
+
+        // ---------- FUNCIONES ----------
+        function parseMarkdown(text) {
+            const lines = text.split(/\r?\n/);
+            const nodes = [];
+            let nextId = 1;
+            let stack = []; // guarda { id, level }
+
+            for (let line of lines) {
+                line = line.trim();
+                if (line === "") continue;
+
+                let level = -1;
+                let label = line;
+
+                // Detectar encabezados #
+                if (line.startsWith("# ")) { level = 0; label = line.substring(2).trim(); }
+                else if (line.startsWith("## ")) { level = 1; label = line.substring(3).trim(); }
+                else if (line.startsWith("### ")) { level = 2; label = line.substring(4).trim(); }
+                else if (line.startsWith("#### ")) { level = 3; label = line.substring(5).trim(); }
+                else if (line.startsWith("##### ")) { level = 4; label = line.substring(6).trim(); }
+                else if (line.startsWith("###### ")) { level = 5; label = line.substring(7).trim(); }
+                else if (line.startsWith("####### ")) { level = 6; label = line.substring(8).trim(); }
+                else if (line.startsWith("- ") || line.startsWith("* ")) {
+                    // Ítem: nivel = último nivel + 1 (si hay stack) sino 1
+                    level = stack.length > 0 ? stack[stack.length-1].level + 1 : 1;
+                    label = line.substring(2).trim();
+                } else {
+                    // Texto plano: mismo comportamiento
+                    level = stack.length > 0 ? stack[stack.length-1].level + 1 : 1;
+                    label = line;
+                }
+
+                // Determinar padre
+                while (stack.length > 0 && stack[stack.length-1].level >= level) {
+                    stack.pop();
+                }
+                let parentId = stack.length > 0 ? stack[stack.length-1].id : null;
+
+                const id = nextId++;
+                nodes.push({ id, label, level, parentId });
+                stack.push({ id, level });
+            }
+
+            // Construir mapa de hijos
+            const childrenMap = new Map();
+            nodes.forEach(n => childrenMap.set(n.id, []));
+            nodes.forEach(n => {
+                if (n.parentId !== null) {
+                    childrenMap.get(n.parentId).push(n.id);
+                }
+            });
+            const roots = nodes.filter(n => n.parentId === null);
+            return { nodes, childrenMap, roots };
+        }
+
+        function renderTree(roots, nodesMap, childrenMap) {
+            if (!roots.length) {
+                mapPanel.innerHTML = '<div class="empty-message">No se encontró estructura. Asegúrate de usar # para el título principal.</div>';
+                return;
+            }
+
+            const container = document.createElement('div');
+            container.className = 'mindmap-tree';
+
+            function buildCard(nodeId) {
+                const node = nodesMap.get(nodeId);
+                if (!node) return null;
+                const childIds = childrenMap.get(nodeId) || [];
+                const hasChildren = childIds.length > 0;
+
+                const card = document.createElement('div');
+                card.className = `node-card level-${Math.min(node.level, 7)}`;
+                card.setAttribute('data-id', nodeId);
+
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'node-title';
+                titleDiv.innerHTML = `<span>${escapeHtml(node.label)}</span>${hasChildren ? '<span class="toggle-icon">▼</span>' : ''}`;
+                card.appendChild(titleDiv);
+
+                let childrenDiv = null;
+                if (hasChildren) {
+                    childrenDiv = document.createElement('div');
+                    childrenDiv.className = 'children-container';
+                    for (let cid of childIds) {
+                        const childCard = buildCard(cid);
+                        if (childCard) childrenDiv.appendChild(childCard);
+                    }
+                    card.appendChild(childrenDiv);
+                }
+
+                // Evento toggle
+                card.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (childrenDiv) {
+                        if (childrenDiv.classList.contains('collapsed')) {
+                            childrenDiv.classList.remove('collapsed');
+                            const icon = titleDiv.querySelector('.toggle-icon');
+                            if (icon) icon.innerHTML = '▼';
+                        } else {
+                            childrenDiv.classList.add('collapsed');
+                            const icon = titleDiv.querySelector('.toggle-icon');
+                            if (icon) icon.innerHTML = '▶';
+                        }
+                    }
+                });
+                return card;
+            }
+
+            for (let root of roots) {
+                const rootCard = buildCard(root.id);
+                if (rootCard) container.appendChild(rootCard);
+            }
+            mapPanel.innerHTML = '';
+            mapPanel.appendChild(container);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        function generarMapa() {
+            const text = textarea.value;
+            if (!text.trim()) {
+                alert('Por favor escribe o pega algún contenido estructurado.');
+                return;
+            }
+            console.log('Generando mapa...');
+            const { nodes, childrenMap, roots } = parseMarkdown(text);
+            if (roots.length === 0) {
+                alert('No se encontró ningún nodo raíz (#). Asegúrate de comenzar con # Título principal.');
+                return;
+            }
+            const nodesMap = new Map();
+            nodes.forEach(n => nodesMap.set(n.id, n));
+            renderTree(roots, nodesMap, childrenMap);
+            console.log('Mapa generado con', nodes.length, 'nodos');
+        }
+
+        function exportarHTML() {
+            const contenido = textarea.value;
+            if (!contenido.trim()) {
+                alert('No hay contenido para exportar.');
+                return;
+            }
+            // Generar archivo HTML independiente
+            const htmlStr = `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Mapa Mental - Misión Ribas</title>
+<style>
+*{box-sizing:border-box;} body{font-family:'Segoe UI',sans-serif; background:#f4f9ff; padding:16px; margin:0;}
+.container{max-width:1200px; margin:auto; background:white; border-radius:32px; overflow:hidden;}
+.header{background:#2c3e66; padding:16px; color:white; text-align:center;}
+.map-panel{padding:20px; max-height:80vh; overflow-y:auto;}
+.node-card{background:#fff; border-left:5px solid; border-radius:20px; padding:12px 18px; margin-bottom:12px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.05);}
+.level-0{border-left-color:#e67e22;} .level-1{border-left-color:#3b82f6;} .level-2{border-left-color:#10b981;}
+.level-3{border-left-color:#8b5cf6;} .level-4{border-left-color:#ec489a;} .level-5{border-left-color:#06b6d4;}
+.node-title{font-weight:600; display:flex; justify-content:space-between;}
+.children-container{margin-left:24px; margin-top:10px; border-left:2px dashed #ccc; padding-left:16px;}
+.collapsed{display:none;} .toggle-icon{opacity:0.7;} footer{background:#eef2fa; text-align:center; padding:12px;}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h2>🧠 Mapa Mental · Misión Ribas</h2></div>
+<div class="map-panel" id="mapPanel">Cargando...</div>
+<footer>Generado con herramienta offline · Clic para expandir/colapsar</footer>
+</div>
+<script>
+const markdownText = ${JSON.stringify(contenido)};
+function parseMarkdown(t){
+    const lines=t.split(/\\r?\\n/);
+    const nodes=[]; let stack=[]; let nextId=1;
+    for(let line of lines){
+        line=line.trim(); if(line==="")continue;
+        let level=-1, label=line;
+        if(line.startsWith("# ")){level=0; label=line.substring(2);}
+        else if(line.startsWith("## ")){level=1; label=line.substring(3);}
+        else if(line.startsWith("### ")){level=2; label=line.substring(4);}
+        else if(line.startsWith("#### ")){level=3; label=line.substring(5);}
+        else if(line.startsWith("##### ")){level=4; label=line.substring(6);}
+        else if(line.startsWith("###### ")){level=5; label=line.substring(7);}
+        else if(line.startsWith("- ")||line.startsWith("* ")){
+            level=stack.length>0?stack[stack.length-1].level+1:1;
+            label=line.substring(2);
+        } else {
+            level=stack.length>0?stack[stack.length-1].level+1:1;
+            label=line;
+        }
+        while(stack.length>0 && stack[stack.length-1].level>=level) stack.pop();
+        let parentId=stack.length>0?stack[stack.length-1].id:null;
+        const id=nextId++;
+        nodes.push({id, label, level, parentId});
+        stack.push({id, level});
+    }
+    const childrenMap=new Map(); nodes.forEach(n=>childrenMap.set(n.id,[]));
+    nodes.forEach(n=>{if(n.parentId!==null) childrenMap.get(n.parentId).push(n.id);});
+    const roots=nodes.filter(n=>n.parentId===null);
+    return {nodes, childrenMap, roots};
+}
+function render(roots, nodesMap, childrenMap){
+    const container=document.getElementById('mapPanel');
+    if(!roots.length){container.innerHTML='<div>No hay estructura</div>'; return;}
+    function escape(s){ return s.replace(/[&<>]/g,function(m){if(m==='&')return'&amp;'; if(m==='<')return'&lt;'; if(m==='>')return'&gt;'; return m;});}
+    function build(id){
+        const n=nodesMap.get(id); if(!n) return null;
+        const childs=childrenMap.get(id)||[];
+        const div=document.createElement('div');
+        div.className='node-card level-'+Math.min(n.level,5);
+        const title=document.createElement('div');
+        title.className='node-title';
+        title.innerHTML='<span>'+escape(n.label)+'</span>'+(childs.length?'<span class="toggle-icon">▼</span>':'');
+        div.appendChild(title);
+        let childDiv=null;
+        if(childs.length){
+            childDiv=document.createElement('div');
+            childDiv.className='children-container';
+            for(let c of childs){ const ccard=build(c); if(ccard) childDiv.appendChild(ccard);}
+            div.appendChild(childDiv);
+            div.addEventListener('click',(e)=>{
+                e.stopPropagation();
+                if(childDiv.classList.contains('collapsed')){ childDiv.classList.remove('collapsed'); title.querySelector('.toggle-icon').innerHTML='▼';}
+                else{ childDiv.classList.add('collapsed'); title.querySelector('.toggle-icon').innerHTML='▶';}
+            });
+        }
+        return div;
+    }
+    const rootDiv=document.createElement('div');
+    for(let r of roots){ const card=build(r.id); if(card) rootDiv.appendChild(card);}
+    container.innerHTML=''; container.appendChild(rootDiv);
+}
+const {nodes, childrenMap, roots}=parseMarkdown(markdownText);
+const nodesMap=new Map(); nodes.forEach(n=>nodesMap.set(n.id,n));
+render(roots, nodesMap, childrenMap);
+<\/script>
+</body>
+</html>`;
+            const blob = new Blob([htmlStr], {type: 'text/html'});
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'mapa_mental_exportado.html';
+            link.click();
+            URL.revokeObjectURL(link.href);
+            alert('HTML exportado correctamente');
+        }
+
+        function exportarTXT() {
+            const contenido = textarea.value;
+            if (!contenido.trim()) {
+                alert('No hay contenido para exportar');
+                return;
+            }
+            const blob = new Blob([contenido], {type: 'text/plain'});
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'mapa_jerarquico.txt';
+            link.click();
+            URL.revokeObjectURL(link.href);
+            alert('Archivo TXT guardado');
+        }
+
+        // Conectar eventos
+        generarBtn.addEventListener('click', generarMapa);
+        exportHtmlBtn.addEventListener('click', exportarHTML);
+        exportTxtBtn.addEventListener('click', exportarTXT);
+
+        // Generar mapa inicial
+        generarMapa();
+    })();
+</script>
+</body>
+</html>
