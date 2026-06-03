@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa Mental · Misión Ribas</title>
+    <title>Mapa Mental · Misión Ribas (con exportación tree)</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -101,15 +101,16 @@
             <button id="generar">✨ Generar mapa</button>
             <button id="expandirTodo">🔽 Expandir todo</button>
             <button id="colapsarTodo">🔼 Colapsar todo</button>
-            <button id="exportarHtml">📄 Exportar HTML</button>
-            <button id="exportarTxt">📁 Exportar TXT</button>
+            <button id="exportarHtml">📄 Exportar HTML (con botones)</button>
+            <button id="exportarTree">🌳 Exportar árbol TXT (tree /F)</button>
+            <button id="exportarTxt">📁 Exportar TXT (raw)</button>
         </div>
     </div>
     <div class="editor">
         <textarea id="contenido" placeholder="Escribe o pega tu texto estructurado con # ## ### -"></textarea>
         <div class="mapa" id="mapa"></div>
     </div>
-    <footer>Haz clic en las tarjetas para expandir/colapsar | Inicia todo colapsado</footer>
+    <footer>Haz clic en las tarjetas para expandir/colapsar | Inicia todo colapsado | Exporta a HTML con funcionalidad completa o a TXT tipo árbol</footer>
 </div>
 
 <script>
@@ -120,6 +121,7 @@
         const expandirBtn = document.getElementById('expandirTodo');
         const colapsarBtn = document.getElementById('colapsarTodo');
         const exportHtmlBtn = document.getElementById('exportarHtml');
+        const exportTreeBtn = document.getElementById('exportarTree');
         const exportTxtBtn = document.getElementById('exportarTxt');
 
         // --- Texto de ejemplo (Planificación y diagnóstico) ---
@@ -201,6 +203,8 @@
                 else if (linea.startsWith("## ")) { nivel = 1; etiqueta = linea.slice(3).trim(); }
                 else if (linea.startsWith("### ")) { nivel = 2; etiqueta = linea.slice(4).trim(); }
                 else if (linea.startsWith("#### ")) { nivel = 3; etiqueta = linea.slice(5).trim(); }
+                else if (linea.startsWith("##### ")) { nivel = 4; etiqueta = linea.slice(6).trim(); }
+                else if (linea.startsWith("###### ")) { nivel = 5; etiqueta = linea.slice(7).trim(); }
                 else if (linea.startsWith("- ") || linea.startsWith("* ")) {
                     nivel = pila.length ? pila[pila.length-1].nivel + 1 : 1;
                     etiqueta = linea.slice(2).trim();
@@ -316,7 +320,7 @@
             document.querySelectorAll('#mapa .icon').forEach(ico => ico.textContent = '▶');
         }
 
-        // --- Exportar HTML ---
+        // ---------- EXPORTAR HTML con botones ----------
         function exportarHTML() {
             const textoActual = textarea.value;
             if (!textoActual.trim()) {
@@ -324,87 +328,104 @@
                 return;
             }
             const htmlSalida = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>Mapa Mental Misión Ribas</title>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Mapa Mental - Misión Ribas</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:Segoe UI,Roboto;background:#f0f4fa;padding:20px;}
+body{font-family:'Segoe UI',Roboto,sans-serif;background:#f0f4fa;padding:20px;}
+.app{max-width:1300px;margin:auto;background:white;border-radius:28px;box-shadow:0 10px 25px rgba(0,0,0,0.1);overflow:hidden;}
+.toolbar{background:#1e2f4f;padding:12px 20px;display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;}
+.toolbar button{background:#ffcd3c;border:none;padding:6px 14px;border-radius:30px;font-weight:bold;cursor:pointer;}
+.mapa{padding:20px;max-height:600px;overflow-y:auto;background:white;}
 .card{background:white;border-left:5px solid;border-radius:20px;padding:10px 16px;margin-bottom:12px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
-.card:hover{background:#f5f7fb;}
+.card:hover{background:#f5f7fb;transform:translateX(3px);}
 .level-0{border-left-color:#e67e22;background:#fff6ea;}
 .level-1{border-left-color:#3b82f6;}
 .level-2{border-left-color:#10b981;}
+.level-3{border-left-color:#8b5cf6;}
 .title{font-weight:600;display:flex;justify-content:space-between;}
 .children{margin-left:25px;padding-left:15px;border-left:2px dashed #bbb;margin-top:8px;}
 .collapsed{display:none;}
 .icon{font-size:1.1rem;opacity:0.6;margin-left:10px;}
+footer{background:#eef2f8;text-align:center;padding:10px;font-size:12px;}
 </style>
 </head>
 <body>
-<div id="mapa"></div>
+<div class="app">
+    <div class="toolbar">
+        <div style="color:white;font-weight:bold;">🧠 Mapa Mental - Misión Ribas</div>
+        <div>
+            <button id="expandirTodo">🔽 Expandir todo</button>
+            <button id="colapsarTodo">🔼 Colapsar todo</button>
+        </div>
+    </div>
+    <div class="mapa" id="mapa"></div>
+    <footer>Haz clic en las tarjetas para expandir/colapsar | Inicia todo colapsado</footer>
+</div>
 <script>
-    const texto = ${JSON.stringify(textoActual)};
-    function parse(t){
-        const lineas=t.split(/\\r?\\n/);
+    const textoOriginal = ${JSON.stringify(textoActual)};
+    function parsear(texto){
+        const lineas=texto.split(/\\r?\\n/);
         const nodos=[]; let pila=[]; let id=1;
-        for(let line of lineas){
-            line=line.trim(); if(!line)continue;
-            let nivel=-1, etiqueta=line;
-            if(line.startsWith("# ")){nivel=0; etiqueta=line.slice(2).trim();}
-            else if(line.startsWith("## ")){nivel=1; etiqueta=line.slice(3).trim();}
-            else if(line.startsWith("### ")){nivel=2; etiqueta=line.slice(4).trim();}
-            else if(line.startsWith("#### ")){nivel=3; etiqueta=line.slice(5).trim();}
-            else if(line.startsWith("- ")||line.startsWith("* ")){nivel=pila.length?pila[pila.length-1].nivel+1:1; etiqueta=line.slice(2).trim();}
-            else{nivel=pila.length?pila[pila.length-1].nivel+1:1; etiqueta=line;}
+        for(let linea of lineas){
+            linea=linea.trim(); if(!linea)continue;
+            let nivel=-1, etiqueta=linea;
+            if(linea.startsWith("# ")){nivel=0; etiqueta=linea.slice(2).trim();}
+            else if(linea.startsWith("## ")){nivel=1; etiqueta=linea.slice(3).trim();}
+            else if(linea.startsWith("### ")){nivel=2; etiqueta=linea.slice(4).trim();}
+            else if(linea.startsWith("#### ")){nivel=3; etiqueta=linea.slice(5).trim();}
+            else if(linea.startsWith("##### ")){nivel=4; etiqueta=linea.slice(6).trim();}
+            else if(linea.startsWith("- ")||linea.startsWith("* ")){nivel=pila.length?pila[pila.length-1].nivel+1:1; etiqueta=linea.slice(2).trim();}
+            else{nivel=pila.length?pila[pila.length-1].nivel+1:1; etiqueta=linea;}
             while(pila.length&&pila[pila.length-1].nivel>=nivel) pila.pop();
-            const padre=pila.length?pila[pila.length-1].id:null;
-            const nid=id++;
-            nodos.push({id:nid, etiqueta, nivel, padreId:padre});
-            pila.push({id:nid, nivel});
+            const padreId=pila.length?pila[pila.length-1].id:null;
+            const nuevoId=id++;
+            nodos.push({id:nuevoId, etiqueta, nivel, padreId});
+            pila.push({id:nuevoId, nivel});
         }
-        const hijos=new Map(); nodos.forEach(n=>hijos.set(n.id,[]));
-        nodos.forEach(n=>{if(n.padreId) hijos.get(n.padreId).push(n.id);});
+        const hijosMap=new Map(); nodos.forEach(n=>hijosMap.set(n.id,[]));
+        nodos.forEach(n=>{if(n.padreId) hijosMap.get(n.padreId).push(n.id);});
         const raices=nodos.filter(n=>n.padreId===null);
-        return {nodos, hijos, raices};
+        return {nodos, hijosMap, raices};
     }
-    function render(raices, nodosMap, hijos){
+    function renderizar(raices, nodosMap, hijosMap){
         const contenedor=document.getElementById('mapa');
-        if(!raices.length){contenedor.innerHTML='<div>Error</div>'; return;}
-        const build=(id)=>{
-            const n=nodosMap.get(id); if(!n) return null;
-            const hijosIds=hijos.get(id)||[];
+        if(!raices.length){contenedor.innerHTML='<div style="padding:20px;">No se encontró jerarquía</div>'; return;}
+        const build=(idNodo)=>{
+            const nodo=nodosMap.get(idNodo); if(!nodo) return null;
+            const hijos=hijosMap.get(idNodo)||[];
             const card=document.createElement('div');
-            card.className='card level-'+Math.min(n.nivel,7);
-            const title=document.createElement('div');
-            title.className='title';
+            card.className='card level-'+Math.min(nodo.nivel,7);
+            const tituloDiv=document.createElement('div');
+            tituloDiv.className='title';
             const span=document.createElement('span');
-            span.textContent=n.etiqueta;
-            title.appendChild(span);
-            let icon=null;
-            if(hijosIds.length){
-                icon=document.createElement('span');
-                icon.className='icon';
-                icon.textContent='▶';
-                title.appendChild(icon);
+            span.textContent=nodo.etiqueta;
+            tituloDiv.appendChild(span);
+            let icono=null;
+            if(hijos.length){
+                icono=document.createElement('span');
+                icono.className='icon';
+                icono.textContent='▶';
+                tituloDiv.appendChild(icono);
             }
-            card.appendChild(title);
+            card.appendChild(tituloDiv);
             let childDiv=null;
-            if(hijosIds.length){
+            if(hijos.length){
                 childDiv=document.createElement('div');
                 childDiv.className='children collapsed';
-                for(let h of hijosIds){
-                    const c=build(h);
-                    if(c) childDiv.appendChild(c);
+                for(let h of hijos){
+                    const sub=build(h);
+                    if(sub) childDiv.appendChild(sub);
                 }
                 card.appendChild(childDiv);
                 card.addEventListener('click',(e)=>{
                     e.stopPropagation();
                     if(childDiv.classList.contains('collapsed')){
                         childDiv.classList.remove('collapsed');
-                        if(icon) icon.textContent='▼';
+                        if(icono) icono.textContent='▼';
                     }else{
                         childDiv.classList.add('collapsed');
-                        if(icon) icon.textContent='▶';
+                        if(icono) icono.textContent='▶';
                     }
                 });
             }
@@ -417,38 +438,101 @@ body{font-family:Segoe UI,Roboto;background:#f0f4fa;padding:20px;}
         }
         contenedor.innerHTML=''; contenedor.appendChild(rootDiv);
     }
-    const {nodos, hijos, raices}=parse(texto);
+    const {nodos, hijosMap, raices}=parsear(textoOriginal);
     const nodosMap=new Map(); nodos.forEach(n=>nodosMap.set(n.id,n));
-    render(raices, nodosMap, hijos);
+    renderizar(raices, nodosMap, hijosMap);
+    document.getElementById('expandirTodo').addEventListener('click',()=>{
+        document.querySelectorAll('.children').forEach(c=>c.classList.remove('collapsed'));
+        document.querySelectorAll('.icon').forEach(i=>i.textContent='▼');
+    });
+    document.getElementById('colapsarTodo').addEventListener('click',()=>{
+        document.querySelectorAll('.children').forEach(c=>c.classList.add('collapsed'));
+        document.querySelectorAll('.icon').forEach(i=>i.textContent='▶');
+    });
 <\/script>
 </body>
 </html>`;
             const blob = new Blob([htmlSalida], {type: 'text/html'});
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = 'mapa_mental_final.html';
+            link.download = 'mapa_mental_con_botones.html';
             link.click();
             URL.revokeObjectURL(link.href);
         }
 
-        function exportarTXT() {
+        // ---------- EXPORTAR ÁRBOL TXT (tree /F) ----------
+        function generarArbolTexto(raices, nodosMap, hijosMap) {
+            let resultado = "";
+            function procesarNodo(id, prefijo, esUltimo) {
+                const nodo = nodosMap.get(id);
+                if (!nodo) return;
+                // Conectar con el prefijo
+                let linea = prefijo;
+                if (esUltimo) linea += "└── ";
+                else linea += "├── ";
+                linea += nodo.etiqueta + "\n";
+                resultado += linea;
+                const hijos = hijosMap.get(id) || [];
+                const nuevoPrefijo = prefijo + (esUltimo ? "    " : "│   ");
+                for (let i = 0; i < hijos.length; i++) {
+                    const esUltimoHijo = (i === hijos.length - 1);
+                    procesarNodo(hijos[i], nuevoPrefijo, esUltimoHijo);
+                }
+            }
+            for (let i = 0; i < raices.length; i++) {
+                const esUltimaRaiz = (i === raices.length - 1);
+                procesarNodo(raices[i].id, "", esUltimaRaiz);
+            }
+            return resultado;
+        }
+
+        function exportarTreeTXT() {
+            const texto = textarea.value;
+            if (!texto.trim()) {
+                alert("No hay contenido para exportar.");
+                return;
+            }
+            const { nodos, hijosMap, raices } = parsear(texto);
+            if (raices.length === 0) {
+                alert("No se encontró un título principal con #.");
+                return;
+            }
+            const nodosMap = new Map();
+            nodos.forEach(n => nodosMap.set(n.id, n));
+            const arbolTexto = generarArbolTexto(raices, nodosMap, hijosMap);
+            const blob = new Blob([arbolTexto], {type: 'text/plain'});
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'mapa_arbol.txt';
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        // --- Exportar TXT raw (con marcas #, ##, -, etc.) ---
+        function exportarRawTXT() {
             const contenido = textarea.value;
-            if (!contenido.trim()) return alert("No hay contenido");
+            if (!contenido.trim()) {
+                alert("No hay contenido para exportar.");
+                return;
+            }
             const blob = new Blob([contenido], {type: 'text/plain'});
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = 'estructura_mapa.txt';
+            link.download = 'mapa_raw.txt';
             link.click();
             URL.revokeObjectURL(link.href);
         }
 
+        // Eventos
         generarBtn.addEventListener('click', generarMapa);
         expandirBtn.addEventListener('click', expandirTodo);
         colapsarBtn.addEventListener('click', colapsarTodo);
         exportHtmlBtn.addEventListener('click', exportarHTML);
-        exportTxtBtn.addEventListener('click', exportarTXT);
+        exportTreeBtn.addEventListener('click', exportarTreeTXT);
+        exportTxtBtn.addEventListener('click', exportarRawTXT);
 
-        generarMapa(); // arranca con el ejemplo
+        // Generar mapa inicial
+        generarMapa();
     })();
 </script>
 </body>
